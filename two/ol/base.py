@@ -194,18 +194,18 @@ class BaseHandler(object):
         return loader.get_template(t)
         
     def render_template(self, t, **kw):
+        template_path = t
+        if self.template_ns:
+            template_path = os.path.join(self.template_ns, t)
         self.context.push()
         self.context.update(kw)
-        t = self.get_template(t)
+        t = self.get_template(template_path)
         result = t.render(self.context)
         self.context.pop()
         return result
 
     def template(self, t, **kw):
-        template_path = t
-        if self.template_ns:
-            template_path = os.path.join(self.template_ns, t)
-        return HttpResponse(self.render_template(template_path, **kw))
+        return HttpResponse(self.render_template(t, **kw))
 
 
 
