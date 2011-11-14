@@ -3,9 +3,9 @@ import os
 
 version = '1.0'
 
-setup(name='qr.funqr',
+setup(name='two.ol',
       version=version,
-      description="FunQR (pronounced as Funkier) allows creation of simple and funky QR codes",
+      description="It takes Two do Django. A django mini framework",
       long_description=open("README.txt").read() + "\n" +
                        open(os.path.join("docs", "HISTORY.txt")).read(),
       # Get more strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
@@ -15,15 +15,14 @@ setup(name='qr.funqr',
       keywords='',
       author='Ivo van der Wijk',
       author_email='ivo@m3r.nl',
-      url='http://qr.nl/',
-      license='Closed, propietary',
+      url='http://github.com/iivvoo/two.ol',
+      license='BSD',
       packages=find_packages(exclude=['ez_setup']),
-      namespace_packages=['qr'],
+      namespace_packages=['two'],
       include_package_data=True,
       zip_safe=False,
       install_requires=[
           'setuptools',
-          'qrencode'
       ],
       entry_points="""
       # -*- Entry points: -*-
