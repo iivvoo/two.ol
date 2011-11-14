@@ -5,6 +5,7 @@ from django.http import HttpResponseRedirect, HttpResponsePermanentRedirect
 from django.http import HttpResponseNotFound, HttpResponseForbidden
 from django.contrib.sites.models import get_current_site
 
+import os
 import types
 import urllib
 
@@ -67,6 +68,7 @@ class BaseHandler(object):
     formclass = None
     model = None
     path = '/'
+    template_ns = None
 
     def __init__(self, request, instance=None, post=False, rest=[], path=None):
         self.request = request
@@ -200,7 +202,10 @@ class BaseHandler(object):
         return result
 
     def template(self, t, **kw):
-        return HttpResponse(self.render_template(t, **kw))
+        template_path = t
+        if self.template_ns:
+            template_path = os.path.join(self.template_ns, t)
+        return HttpResponse(self.render_template(template_path, **kw))
 
 
 
