@@ -137,7 +137,7 @@ class BaseHandler(object):
         # XXX is_secure / https
         p = "http://%s/" % self.site.domain
 
-        if self.path:
+        if self.path.strip('/'):
             p += self.path + '/' # must end in slash
 
         if elements:
