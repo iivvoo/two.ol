@@ -24,8 +24,11 @@ setup(name='two.ol',
       install_requires=[
           'setuptools',
       ],
-      entry_points="""
-      # -*- Entry points: -*-
-      """,
+      entry_points={
+        "console_scripts":[
+            "newrelic=two.ol.newrelicfix:main",
+        ]
+      },
+
       )
 
