@@ -214,6 +214,10 @@ class BaseDispatcher(object):
         self.handler = handler
         self.path = path
 
+    @property
+    def _nr_object_path(self):
+        return "%s:%s.%s" % (self.path, self.handler.__module__, self.handler.__name__)
+
     def __call__(self, request, path=""):
         ## instance stuff belongs in RESTLike
         
@@ -318,3 +322,5 @@ class RESTLikeHandler(BaseHandler):
     def update(self):
         pass
 
+    def __str__(self):
+        return 'kak'
