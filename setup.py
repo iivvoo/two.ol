@@ -27,6 +27,7 @@ setup(name='two.ol',
       entry_points={
         "console_scripts":[
             "newrelic=two.ol.newrelicfix:main",
+            "nr-run=two.ol.newrelicfix:runner",
         ]
       },
 
