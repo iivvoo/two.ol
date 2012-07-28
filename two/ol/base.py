@@ -39,7 +39,9 @@ def applyrequest(f):
 def context(f):
     f.contextified = True
     return f
-    
+
+## Mapping is partially mimicing django's url naming/reverse. Use that
+## in stead.
 def Mapping(path, handlerklass):
     ## path/url stuff is still a bit messy.
     path = path.strip("/")
