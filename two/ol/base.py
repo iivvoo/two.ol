@@ -65,7 +65,7 @@ class NotFound(BaseException):
 
 class Forbidden(BaseException):
     pass
-    
+
 class BaseHandler(object):
     formclass = None
     model = None
@@ -194,7 +194,7 @@ class BaseHandler(object):
 
     def get_template(self, t):
         return loader.get_template(t)
-        
+
     def render_template(self, t, **kw):
         template_path = t
         if self.template_ns:
@@ -222,7 +222,7 @@ class BaseDispatcher(object):
 
     def __call__(self, request, path=""):
         ## instance stuff belongs in RESTLike
-        
+
         instance = None
         op = ""
         rest = []
@@ -230,7 +230,7 @@ class BaseDispatcher(object):
         if path.startswith("/"):
             path = path.lstrip("/")
         elements = [x for x in path.split("/") if x] # filter out blanks
-        
+
         ## it can be an op or an object id
         if elements:
             if self.handler.model is not None:
@@ -261,7 +261,7 @@ class FormDispatcher(BaseDispatcher):
     def get(self, request, instance=None, op="", rest=[]):
         h = self.handler(request, instance=instance, post=False, rest=rest, 
                          path=self.path)
-        
+
         if op and hasattr(h, "handle_" + op):
             return getattr(h, "handle_" + op)()
         return h.index()
@@ -269,7 +269,7 @@ class FormDispatcher(BaseDispatcher):
     def post(self, request, instance=None, op="", rest=[]):
         h = self.handler(request, instance=instance, post=True, rest=rest,
                          path=self.path)
-        
+
         if op and hasattr(h, "handle_" + op):
             return getattr(h, "handle_" + op)()
         return h.process()
