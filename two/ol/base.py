@@ -222,7 +222,6 @@ class BaseDispatcher(object):
 
     def __call__(self, request, path=""):
         ## instance stuff belongs in RESTLike
-
         instance = None
         op = ""
         rest = []
@@ -300,6 +299,10 @@ class RESTLikeDispatcher(BaseDispatcher):
             return h.create()
         return h.update()
 
+
+class APIDispatcher(RESTLikeDispatcher):
+    csrf_exempt = True
+
 class FormHandler(BaseHandler):
     dispatcher = FormDispatcher
 
@@ -324,5 +327,7 @@ class RESTLikeHandler(BaseHandler):
     def update(self):
         pass
 
-    def __str__(self):
-        return 'kak'
+class APIHandler(BaseHandler):
+    dispatcher = APIDispatcher
+
+    csrf_exempt = True
