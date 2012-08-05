@@ -81,6 +81,8 @@ class BaseHandler(object):
         self.rest = rest
         self.path = path or self.path
 
+        self.verify_access(instance)
+
         self.messages = {}
 
         if self.formclass:
@@ -103,6 +105,11 @@ class BaseHandler(object):
             if isinstance(m, (types.FunctionType, types.MethodType)) and \
                getattr(m, 'contextified', False):
                 self.context[a] = m
+
+    def verify_access(self, instance):
+        """ verify if user has access to object in current context """
+        ## return self.forbidden() if not
+        return True
 
     def set_message(self, type, message):
         self.messages[type] = message
@@ -169,14 +176,16 @@ class BaseHandler(object):
     def vars(self, key, default=None):
         return self.request.REQUEST.get(key, default)
 
-
     @classmethod
     def coerce(cls, i):
         try:
             return cls.model.objects.get(id=int(i))
         except ValueError:
             return None
-        
+        except cls.model.DoesNotExist:
+            ## can't call self.notfound since we're a classmethod
+            raise NotFound()
+
     def redirect(self, url, permanent=False, **kw):
         args = urllib.urlencode(kw)
         if args:
@@ -233,9 +242,13 @@ class BaseDispatcher(object):
         ## it can be an op or an object id
         if elements:
             if self.handler.model is not None:
-                instance = self.handler.coerce(elements[0])
+                try:
+                    instance = self.handler.coerce(elements[0])
+                except NotFound:
+                    return HttpResponseNotFound()
             if instance is None:
                 op = elements[0]
+                rest = elements[1:]
             elif len(elements) > 1:
                 op = elements[1]
                 rest = elements[2:]
@@ -258,7 +271,7 @@ class BaseDispatcher(object):
 
 class FormDispatcher(BaseDispatcher):
     def get(self, request, instance=None, op="", rest=[]):
-        h = self.handler(request, instance=instance, post=False, rest=rest, 
+        h = self.handler(request, instance=instance, post=False, rest=rest,
                          path=self.path)
 
         if op and hasattr(h, "handle_" + op):
@@ -292,16 +305,35 @@ class RESTLikeDispatcher(BaseDispatcher):
     def post(self, request, instance=None, op="", rest=[]):
         h = self.handler(request, instance=instance, post=True, rest=rest,
                          path=self.path)
-        
         if op and hasattr(h, "handle_" + op):
             return getattr(h, "handle_" + op)()
         if instance is None:
             return h.create()
         return h.update()
 
+class Resource(object):
+    def __call__(self):
+        return 'ok'
 
 class APIDispatcher(RESTLikeDispatcher):
     csrf_exempt = True
+
+    def get(self, request, instance=None, op="", rest=[]):
+        return HttpResponseNotFound()
+
+    def post(self, request, instance=None, op="", rest=[]):
+        h = self.handler(request, instance=instance, post=True, rest=rest,
+                         path=self.path)
+        if op not in h.resources:
+            return HttpResponseNotFound()
+        resource = h.resources[op]()
+        try:
+            result = resource(self.path, rest, request)
+        except NotFound:
+            return HttpResponseNotFound()
+        except Forbidden:
+            return HttpResponseForbidden()
+        return HttpResponse(result)
 
 class FormHandler(BaseHandler):
     dispatcher = FormDispatcher
@@ -329,5 +361,5 @@ class RESTLikeHandler(BaseHandler):
 
 class APIHandler(BaseHandler):
     dispatcher = APIDispatcher
-
     csrf_exempt = True
+    resources = {}
