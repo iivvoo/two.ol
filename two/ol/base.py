@@ -1,4 +1,4 @@
-from django.template import Context, loader
+from django.template import RequestContext, loader
 from django.http import HttpResponse
 from django.core.context_processors import csrf
 from django.http import HttpResponseRedirect, HttpResponsePermanentRedirect
@@ -48,7 +48,8 @@ def Mapping(path, handlerklass):
     if path:
         pattern = "^%s/(.*)$" % path
     else:
-        pattern = "^(.*)$"
+        # pattern = "^(.*)$"
+        pattern = "^$"
     handler = handlerklass.dispatcher(handlerklass, path=path)
     return (pattern, handler)
 
@@ -74,8 +75,10 @@ class BaseHandler(object):
 
     def __init__(self, request, instance=None, post=False, rest=[], path=None):
         self.request = request
-        self.context = Context()
-        self.context.update(csrf(request))
+        self.context = RequestContext(request)
+
+        self.update_context(request)
+
         self.instance = instance
         self.post = post
         self.rest = rest
@@ -105,6 +108,10 @@ class BaseHandler(object):
             if isinstance(m, (types.FunctionType, types.MethodType)) and \
                getattr(m, 'contextified', False):
                 self.context[a] = m
+
+    def update_context(self, request):
+        """ hook to add more stuff into context """
+        pass
 
     def verify_access(self, instance):
         """ verify if user has access to object in current context """
