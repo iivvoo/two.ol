@@ -48,8 +48,8 @@ def Mapping(path, handlerklass):
     if path:
         pattern = "^%s/(.*)$" % path
     else:
-        # pattern = "^(.*)$"
-        pattern = "^$"
+        pattern = "^(.*)$"
+        # pattern = "^$"
     handler = handlerklass.dispatcher(handlerklass, path=path)
     return (pattern, handler)
 
@@ -346,25 +346,25 @@ class FormHandler(BaseHandler):
     dispatcher = FormDispatcher
 
     def index(self):
-        pass
+        self.notfound()
 
     def process(self):
-        pass
+        self.notfound()
 
 class RESTLikeHandler(BaseHandler):
     dispatcher = RESTLikeDispatcher
 
     def create(self):
-        pass
+        self.notfound()
 
     def list(self):
-        pass
+        self.notfound()
 
     def view(self):
-        pass
+        self.notfound()
 
     def update(self):
-        pass
+        self.notfound()
 
 class APIHandler(BaseHandler):
     dispatcher = APIDispatcher
