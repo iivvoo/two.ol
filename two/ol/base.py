@@ -8,10 +8,16 @@ from django.contrib.sites.models import get_current_site
 import os
 import types
 import urllib
+import json as jsonlib
 
 ## "Twool" / 2ol it takes two to django 
 ## Toolkit for Web Oriented Object Library
 ## 
+
+def json(f):
+    def jsonify(*args, **kw):
+        return HttpResponse(jsonlib.dumps(f(*args, **kw)))
+    return jsonify
 
 ## applypost, applyget, applyform?
 def applyrequest(f):
