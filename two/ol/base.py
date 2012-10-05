@@ -93,6 +93,7 @@ class BaseHandler(object):
         self.verify_access(instance)
 
         self.messages = {}
+        self.context['piggyback'] = {}
 
         if self.formclass:
             if post:
@@ -189,6 +190,14 @@ class BaseHandler(object):
     def vars(self, key, default=None):
         return self.request.REQUEST.get(key, default)
 
+    def piggyback(self, *arguments):
+        """ The piggyback can be used to store arguments that need to survive
+            redirects and formposts """
+        piggyback = self.context['piggyback']
+        for argument in arguments:
+            if argument in self.request.REQUEST:
+                piggyback[argument] = self.request.REQUEST[argument]
+
     @classmethod
     def coerce(cls, i):
         try:
@@ -199,13 +208,18 @@ class BaseHandler(object):
             ## can't call self.notfound since we're a classmethod
             raise NotFound()
 
-    def redirect(self, url, permanent=False, **kw):
-        args = urllib.urlencode(kw)
+    def redirect(self, url, permanent=False, hash=None, piggyback=False, **kw):
+        args = kw.copy()
+        if piggyback:
+            args.update(self.context['piggyback'])
+        args = urllib.urlencode(args)
         if args:
             if '?' in url: # it already has args
                 url = url + "&" + args
             else:
                 url = url + "?" + args
+        if hash:
+            url += "#" + hash
         raise Redirect(url, permanent=permanent)
 
     def notfound(self):
