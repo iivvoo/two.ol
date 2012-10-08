@@ -1,4 +1,4 @@
-from django.template import Context, loader
+from django.template import RequestContext, loader
 from django.http import HttpResponse
 from django.core.context_processors import csrf
 from django.http import HttpResponseRedirect, HttpResponsePermanentRedirect
@@ -16,8 +16,7 @@ import json as jsonlib
 
 def json(f):
     def jsonify(*args, **kw):
-        res = f(*args, **kw)
-        return HttpResponse(jsonlib.dumps(res))
+        return HttpResponse(jsonlib.dumps(f(*args, **kw)))
     return jsonify
 
 ## applypost, applyget, applyform?
@@ -56,6 +55,7 @@ def Mapping(path, handlerklass):
         pattern = "^%s/(.*)$" % path
     else:
         pattern = "^(.*)$"
+        # pattern = "^$"
     handler = handlerklass.dispatcher(handlerklass, path=path)
     return (pattern, handler)
 
@@ -81,8 +81,10 @@ class BaseHandler(object):
 
     def __init__(self, request, instance=None, post=False, rest=[], path=None):
         self.request = request
-        self.context = Context()
-        self.context.update(csrf(request))
+        self.context = RequestContext(request)
+
+        self.update_context(request)
+
         self.instance = instance
         self.post = post
         self.rest = rest
@@ -91,6 +93,7 @@ class BaseHandler(object):
         self.verify_access(instance)
 
         self.messages = {}
+        self.context['piggyback'] = {}
 
         if self.formclass:
             if post:
@@ -112,6 +115,10 @@ class BaseHandler(object):
             if isinstance(m, (types.FunctionType, types.MethodType)) and \
                getattr(m, 'contextified', False):
                 self.context[a] = m
+
+    def update_context(self, request):
+        """ hook to add more stuff into context """
+        pass
 
     def verify_access(self, instance):
         """ verify if user has access to object in current context """
@@ -183,6 +190,14 @@ class BaseHandler(object):
     def vars(self, key, default=None):
         return self.request.REQUEST.get(key, default)
 
+    def piggyback(self, *arguments):
+        """ The piggyback can be used to store arguments that need to survive
+            redirects and formposts """
+        piggyback = self.context['piggyback']
+        for argument in arguments:
+            if argument in self.request.REQUEST:
+                piggyback[argument] = self.request.REQUEST[argument]
+
     @classmethod
     def coerce(cls, i):
         try:
@@ -193,13 +208,18 @@ class BaseHandler(object):
             ## can't call self.notfound since we're a classmethod
             raise NotFound()
 
-    def redirect(self, url, permanent=False, **kw):
-        args = urllib.urlencode(kw)
+    def redirect(self, url, permanent=False, hash=None, piggyback=False, **kw):
+        args = kw.copy()
+        if piggyback:
+            args.update(self.context['piggyback'])
+        args = urllib.urlencode(args)
         if args:
             if '?' in url: # it already has args
                 url = url + "&" + args
             else:
                 url = url + "?" + args
+        if hash:
+            url += "#" + hash
         raise Redirect(url, permanent=permanent)
 
     def notfound(self):
@@ -346,25 +366,25 @@ class FormHandler(BaseHandler):
     dispatcher = FormDispatcher
 
     def index(self):
-        pass
+        self.notfound()
 
     def process(self):
-        pass
+        self.notfound()
 
 class RESTLikeHandler(BaseHandler):
     dispatcher = RESTLikeDispatcher
 
     def create(self):
-        pass
+        self.notfound()
 
     def list(self):
-        pass
+        self.notfound()
 
     def view(self):
-        pass
+        self.notfound()
 
     def update(self):
-        pass
+        self.notfound()
 
 class APIHandler(BaseHandler):
     dispatcher = APIDispatcher
