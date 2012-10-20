@@ -16,7 +16,7 @@ import json as jsonlib
 
 def json(f):
     def jsonify(*args, **kw):
-        return HttpResponse(jsonlib.dumps(f(*args, **kw)))
+        return HttpResponse(jsonlib.dumps(f(*args, **kw)), mimetype="application/json")
     return jsonify
 
 ## applypost, applyget, applyform?
