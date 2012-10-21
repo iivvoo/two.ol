@@ -79,17 +79,28 @@ class BaseHandler(object):
     path = '/'
     template_ns = None
 
-    def __init__(self, request, instance=None, post=False, rest=[], path=None):
+    def __init__(self, request, instance=None, post=False, rest=[],
+                 path=None):
         self.request = request
         self.context = RequestContext(request)
 
         self.update_context(request)
 
-        self.instance = instance
+        if isinstance(instance, dict):
+            self.instance = None
+            for k, v in instance.iteritems():
+                setattr(self, k, v)
+                self.context[k] = v
+        else:
+            self.instance = instance
+            self.context['instance'] = self.instance
         self.post = post
         self.rest = rest
         self.path = path or self.path
 
+        ## instance can be a dict, depending on it in general is
+        ## deprecated. Access self.instance directly, which has been
+        ## unmapped
         self.verify_access(instance)
 
         self.messages = {}
@@ -98,18 +109,18 @@ class BaseHandler(object):
         if self.formclass:
             if post:
                 if instance:
-                    self.form = self.formclass(data=request.POST, instance=instance)
+                    self.form = self.formclass(data=request.POST,
+                                               instance=self.instance)
                 else:
                     self.form = self.formclass(data=request.POST)
             else:
-                if instance:
-                    self.form = self.formclass(instance=instance)
+                if self.instance:
+                    self.form = self.formclass(instance=self.instance)
                 else:
                     self.form = self.formclass()
         else:
             self.form = None
         self.context['form'] = self.form
-        self.context['instance'] = instance
         for a in dir(self):
             m = getattr(self, a)
             if isinstance(m, (types.FunctionType, types.MethodType)) and \
@@ -191,8 +202,8 @@ class BaseHandler(object):
         return self.request.REQUEST.get(key, default)
 
     def piggyback(self, *arguments):
-        """ The piggyback can be used to store arguments that need to survive
-            redirects and formposts """
+        """ The piggyback can be used to store arguments that need to
+            survive redirects and formposts """
         piggyback = self.context['piggyback']
         for argument in arguments:
             if argument in self.request.REQUEST:
@@ -200,6 +211,21 @@ class BaseHandler(object):
 
     @classmethod
     def coerce(cls, i):
+        if isinstance(i, dict):
+            ## a "multi model"
+            res = {}
+            for (k, v) in i.iteritems():
+                try:
+                    res[k] = cls.model[k].objects.get(id=int(v))
+                except KeyError:
+                    raise RuntimeError("No model defined for " + k)
+                except ValueError:
+                    return None
+                except cls.model[k].DoesNotExist:
+                    ## can't call self.notfound since we're a classmethod
+                    raise NotFound()
+            return res
+
         try:
             return cls.model.objects.get(id=int(i))
         except ValueError:
@@ -208,7 +234,8 @@ class BaseHandler(object):
             ## can't call self.notfound since we're a classmethod
             raise NotFound()
 
-    def redirect(self, url, permanent=False, hash=None, piggyback=False, **kw):
+    def redirect(self, url, permanent=False, hash=None,
+                 piggyback=False, **kw):
         args = kw.copy()
         if piggyback:
             args.update(self.context['piggyback'])
@@ -256,7 +283,7 @@ class BaseDispatcher(object):
     def _nr_object_path(self):
         return "%s:%s.%s" % (self.path, self.handler.__module__, self.handler.__name__)
 
-    def __call__(self, request, path=""):
+    def __call__(self, request, path="", **kw):
         ## instance stuff belongs in RESTLike
         instance = None
         op = ""
@@ -264,7 +291,10 @@ class BaseDispatcher(object):
 
         if path.startswith("/"):
             path = path.lstrip("/")
-        elements = [x for x in path.split("/") if x] # filter out blanks
+        if kw:
+            elements = [kw]
+        else:
+            elements = [x for x in path.split("/") if x] # filter out blanks
 
         ## it can be an op or an object id
         if elements:
@@ -326,6 +356,9 @@ class RESTLikeDispatcher(BaseDispatcher):
         elif op:
             pass # 404
         elif instance is None:
+            return h.list()
+        elif isinstance(instance, dict) and 'instance' not in instance:
+            ## "multi" model with no instance class
             return h.list()
         return h.view()
 
