@@ -52,9 +52,9 @@ def Mapping(path, handlerklass):
     ## path/url stuff is still a bit messy.
     path = path.strip("/")
     if path:
-        pattern = "^%s/(.*)$" % path
+        pattern = "^%s/(?P<path>.*)$" % path
     else:
-        pattern = "^(.*)$"
+        pattern = "^(?P<path>.*)$"
         # pattern = "^$"
     handler = handlerklass.dispatcher(handlerklass, path=path)
     return (pattern, handler)
@@ -289,26 +289,41 @@ class BaseDispatcher(object):
         op = ""
         rest = []
 
-        if path.startswith("/"):
-            path = path.lstrip("/")
-        if kw:
-            elements = [kw]
-        else:
-            elements = [x for x in path.split("/") if x] # filter out blanks
+        path = path.lstrip("/")
 
-        ## it can be an op or an object id
-        if elements:
+        elements = [x for x in path.split("/") if x] # filter out blanks
+        coerceable = None
+        ##
+        ## kw contains a mapping from the urlpattern that mas
+        ## to one or more models
+        if kw:
+            coerceable = kw
+        else:
+            ## coerce based on the first part of the path
+            coerceable = elements[0]
+
+        ## If there's something to coerce
+        if coerceable:
             if self.handler.model is not None:
                 try:
-                    instance = self.handler.coerce(elements[0])
+                    instance = self.handler.coerce(coerceable)
                 except NotFound:
                     return HttpResponseNotFound()
+
+            ## if it didn't result in a instance, keep the first element
+            ## as part of the op / elements
             if instance is None:
-                op = elements[0]
-                rest = elements[1:]
-            elif len(elements) > 1:
-                op = elements[1]
-                rest = elements[2:]
+                if elements:  ## might be we only have kw
+                    op = elements[0]
+                    rest = elements[1:]
+            else:
+                if kw:  ## all elements are op/rest
+                    if elements:
+                        op = elements[0]
+                        rest = elements[1:]
+                elif len(elements) > 1:  ## elements[0] was coerced
+                    op = elements[1]
+                    rest = elements[2:]
 
         try:
             if request.method == "GET":
