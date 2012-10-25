@@ -31,3 +31,4 @@ class TestDispatcher(object):
 
         d(request, "/foo/bar", a="bla")
 
+    ## test request on /, path=""

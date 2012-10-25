@@ -48,16 +48,31 @@ def context(f):
 
 ## Mapping is partially mimicing django's url naming/reverse. Use that
 ## in stead.
-def Mapping(path, handlerklass):
+
+from django.conf.urls import url
+from django.conf.urls.defaults import patterns
+
+def Pats(path, handlerklass, name=None):
+    return patterns('',
+        Mapping(path, handlerklass, name, wp=False),
+        Mapping(path, handlerklass, name, wp=True),
+    )
+
+def Mapping(path, handlerklass, name=None, wp=True):
     ## path/url stuff is still a bit messy.
     path = path.strip("/")
-    if path:
-        pattern = "^%s/(?P<path>.*)$" % path
+    if wp:
+        pathpattern = "(?P<path>.*)"
     else:
-        pattern = "^(?P<path>.*)$"
-        # pattern = "^$"
+        pathpattern = ""
+    if path:
+        pattern = "^%s/%s$" % (path, pathpattern)
+    else:
+        pattern = "^%s$" % pathpattern
     handler = handlerklass.dispatcher(handlerklass, path=path)
-    return (pattern, handler)
+    if name:
+        return url(pattern, handler, name=name)
+    return url(pattern, handler)
 
 class BaseException(Exception):
     pass
@@ -211,7 +226,10 @@ class BaseHandler(object):
 
     @classmethod
     def coerce(cls, i):
-        if isinstance(i, dict):
+        if isinstance(cls.model, dict):
+            if not isinstance(i, dict):
+                i = {'instance': i}
+
             ## a "multi model"
             res = {}
             for (k, v) in i.iteritems():
@@ -298,7 +316,7 @@ class BaseDispatcher(object):
         ## to one or more models
         if kw:
             coerceable = kw
-        else:
+        elif len(elements):
             ## coerce based on the first part of the path
             coerceable = elements[0]
 
