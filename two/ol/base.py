@@ -103,6 +103,10 @@ class BaseHandler(object):
 
         if isinstance(instance, dict):
             self.instance = None
+            ## initialize all multimodel instances to None
+            if isinstance(self.model, dict):
+                for k in self.model:
+                    setattr(self, k, None)
             for k, v in instance.iteritems():
                 setattr(self, k, v)
                 self.context[k] = v
