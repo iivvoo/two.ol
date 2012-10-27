@@ -248,6 +248,10 @@ class BaseHandler(object):
                     raise NotFound()
             return res
 
+        if isinstance(i, dict):
+            ## we're handed a dict but the handler only supports a single
+            ## model. Fetch the instance from the dict
+            i = i.get('instance')
         try:
             return cls.model.objects.get(id=int(i))
         except ValueError:
