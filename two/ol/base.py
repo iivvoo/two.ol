@@ -1,5 +1,5 @@
 from django.template import RequestContext, loader
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from django.core.context_processors import csrf
 from django.http import HttpResponseRedirect, HttpResponsePermanentRedirect
 from django.http import HttpResponseNotFound, HttpResponseForbidden
@@ -52,14 +52,60 @@ def context(f):
 from django.conf.urls import url
 from django.conf.urls.defaults import patterns
 
+def methods_for_handler(h):
+    ## add callable check?
+    return [x[7:] for x in dir(h) if x.startswith("handle_")]
+
 def Pats(path, handlerklass, name=None):
+    def NewMapping(path, handlerklass, name, wp=True):
+        path = path.strip("/")
+        if wp:
+            pathpattern = "(?P<path>(%s)*)" % "|".join(methods_for_handler(handlerklass))
+        else:
+            pathpattern = ""
+
+        if path:
+            pattern = "^%s/%s$" % (path, pathpattern)
+        else:
+            pattern = "^%s$" % pathpattern
+        handler = handlerklass.dispatcher(handlerklass, path=path)
+        if name:
+            return url(pattern, handler, name=name)
+        return url(pattern, handler)
+
     return patterns('',
-        Mapping(path, handlerklass, name, wp=False),
-        Mapping(path, handlerklass, name, wp=True),
+        NewMapping(path, handlerklass, name, wp=False),
+        NewMapping(path, handlerklass, name, wp=True),
     )
 
+from django.core.urlresolvers import RegexURLResolver
+
+def twpatterns(path, handlerklass, name=None):
+    """
+        Simulate an included url module with all our generated/required
+        patterns
+
+        We could (ab)use the 'prefix' part as the base part of our
+        patterns, e.g.
+        twpatterns('instance', '<regexppattern>', name='bla')
+    """
+    urlpatterns = Pats(path, handlerklass, name)
+    return RegexURLResolver('', urlpatterns)
+
 def Mapping(path, handlerklass, name=None, wp=True):
-    ## path/url stuff is still a bit messy.
+    """
+        The generated mappings are messy - we want to much and
+        there are two somewhat conflicting systems:
+
+        - explicit instance naming/multi model. The path contains the
+          pattern, and 'path' is a possible remained (for ops / handle_*
+          methods). In this case, we can restrict path to all handle_*
+          methods explicitly by analyzing the handler
+        - implicit. Only a base is specified; the "extracted" path is used
+          for both coercing an instance and getting an op (handle_*). This
+          means it can/may contan a /. E.g. /request/123/foo
+          In this case, 'foo' can also be extracted from the handler.
+    """
     path = path.strip("/")
     if wp:
         pathpattern = "(?P<path>.*)"
@@ -362,7 +408,7 @@ class BaseDispatcher(object):
             else:
                 return HttpResponseRedirect(e.url)
         except NotFound:
-            return HttpResponseNotFound()
+            raise Http404
         except Forbidden:
             return HttpResponseForbidden()
         return HttpResponseNotFound()
