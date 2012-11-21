@@ -19,8 +19,25 @@ def json(f):
         return HttpResponse(jsonlib.dumps(f(*args, **kw)), mimetype="application/json")
     return jsonify
 
+def applyrequest(f=None, **kw):
+    """
+        Support the following forms:
+        @applyrequest
+        @applyrequest()
+        @applyrequest(page=int)
+
+        by wrapping the appropriate decorator depending on wether a function
+        was passed or not
+    """
+    if not f:
+        def x(f):
+            return applyrequest_notype(f, **kw)
+        return x
+    else:
+        return applyrequest_notype
+
 ## applypost, applyget, applyform?
-def applyrequest(f):
+def applyrequest_notype(f, **mapping):
     ## XXX positional arguments don't work, see reset.py -> process
     def applicator(self, *args, **kw):
         ##
@@ -30,14 +47,34 @@ def applyrequest(f):
         vars = f.func_code.co_varnames[:f.func_code.co_argcount]
         args = args[:]
         kw = kw.copy()
-        _marker = object()
         for k in vars:
-            v = request.REQUEST.get(k, _marker)
-            if v is not _marker:
+            try:
+                v = request.REQUEST[k]
+                if k in mapping:
+                    v = mapping[k](v)
                 kw[k] = v
+            except KeyError:
+                pass
+
         return f(self, *args, **kw)
 
     return applicator
+
+def applyrequest_type(**kw):
+    """
+        A decorator that applies request arguments to the method,
+        supporting an additional mapping. E.g.
+
+        @applyrequest_type(page=int)
+        def get(page=1):
+            ...
+
+        will get a variable 'page' from the request and convert it to int
+    """
+    def x(f):
+        return applyrequest(f, **kw)
+    return x
+
 ##
 ## @expose decorator that allows you to pass an entire class to 
 ## context, only exposing decorated methods
