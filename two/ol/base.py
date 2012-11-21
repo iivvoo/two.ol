@@ -34,7 +34,7 @@ def applyrequest(f=None, **kw):
             return applyrequest_notype(f, **kw)
         return x
     else:
-        return applyrequest_notype
+        return applyrequest_notype(f)
 
 ## applypost, applyget, applyform?
 def applyrequest_notype(f, **mapping):
@@ -91,13 +91,14 @@ from django.conf.urls.defaults import patterns
 
 def methods_for_handler(h):
     ## add callable check?
-    return [x[7:] for x in dir(h) if x.startswith("handle_")]
+    return [x[7:] for x in dir(h) if x.startswith("handle_")] + ["create"]
 
 def Pats(path, handlerklass, name=None):
     def NewMapping(path, handlerklass, name, wp=True):
         path = path.strip("/")
         if wp:
-            pathpattern = "(?P<path>(%s)*)" % "|".join(methods_for_handler(handlerklass))
+            pathpattern = "(?P<path>(%s)*)" % "|".join(
+                                       methods_for_handler(handlerklass))
         else:
             pathpattern = ""
 
@@ -178,7 +179,22 @@ class BaseHandler(object):
     template_ns = None
 
     def __init__(self, request, instance=None, post=False, rest=[],
-                 path=None):
+                 path=None, kw={}):
+        """
+            request
+                The original (django) request
+            instance
+                A coerced instance. Can be a dictionary if the handler
+                supports multiple models
+            post
+                True if it's a POST request
+            rest
+                Unresolved path components
+            path
+                Original path (url-pattern path?) OBSOLETE XXX
+            **kw
+                Arguments from the urlpattern. Also contains the instance
+        """
         self.request = request
         self.context = RequestContext(request)
 
@@ -199,6 +215,7 @@ class BaseHandler(object):
         self.post = post
         self.rest = rest
         self.path = path or self.path
+        self.kw = kw
 
         ## instance can be a dict, depending on it in general is
         ## deprecated. Access self.instance directly, which has been
@@ -270,6 +287,7 @@ class BaseHandler(object):
 
     @context
     def url(self, *elements):
+        ### XXX obsolete ?
         # XXX is_secure / https
         p = "http://%s/" % self.site.domain
 
@@ -335,6 +353,13 @@ class BaseHandler(object):
             ## we're handed a dict but the handler only supports a single
             ## model. Fetch the instance from the dict
             i = i.get('instance')
+
+            ## if we were not able to fetch an instance value, there's
+            ## nothing to coerce. E.g. when doing a create on
+            ## POST /foo/123/bar which would create a new bar under foo 123
+            if not i:
+                return None
+
         try:
             return cls.model.objects.get(id=int(i))
         except ValueError:
@@ -390,7 +415,8 @@ class BaseDispatcher(object):
 
     @property
     def _nr_object_path(self):
-        return "%s:%s.%s" % (self.path, self.handler.__module__, self.handler.__name__)
+        return "%s:%s.%s" % (self.path, self.handler.__module__,
+                             self.handler.__name__)
 
     def __call__(self, request, path="", **kw):
         ## instance stuff belongs in RESTLike
@@ -403,8 +429,8 @@ class BaseDispatcher(object):
         elements = [x for x in path.split("/") if x] # filter out blanks
         coerceable = None
         ##
-        ## kw contains a mapping from the urlpattern that mas
-        ## to one or more models
+        ## kw contains a mapping from the urlpattern that maps
+        ## to zero or more models
         if kw:
             coerceable = kw
         elif len(elements):
@@ -436,9 +462,9 @@ class BaseDispatcher(object):
 
         try:
             if request.method == "GET":
-                return self.get(request, instance, op, rest)
+                return self.get(request, instance, op, rest, kw=kw)
             elif request.method == "POST":
-                return self.post(request, instance, op, rest)
+                return self.post(request, instance, op, rest, kw=kw)
         except Redirect, e:
             if e.permanent:
                 return HttpResponsePermanentRedirect(e.url)
@@ -450,27 +476,33 @@ class BaseDispatcher(object):
             return HttpResponseForbidden()
         return HttpResponseNotFound()
 
+    def get(self, request, instance=None, op="", rest=[], kw={}):
+        pass
+
+    def post(self, request, instance=None, op="", rest=[], kw={}):
+        pass
+
 class FormDispatcher(BaseDispatcher):
-    def get(self, request, instance=None, op="", rest=[]):
+    def get(self, request, instance=None, op="", rest=[], kw={}):
         h = self.handler(request, instance=instance, post=False, rest=rest,
-                         path=self.path)
+                         path=self.path, kw=kw)
 
         if op and hasattr(h, "handle_" + op):
             return getattr(h, "handle_" + op)()
         return h.index()
 
-    def post(self, request, instance=None, op="", rest=[]):
+    def post(self, request, instance=None, op="", rest=[], kw={}):
         h = self.handler(request, instance=instance, post=True, rest=rest,
-                         path=self.path)
+                         path=self.path, kw=kw)
 
         if op and hasattr(h, "handle_" + op):
             return getattr(h, "handle_" + op)()
         return h.process()
 
 class RESTLikeDispatcher(BaseDispatcher):
-    def get(self, request, instance=None, op="", rest=[]):
+    def get(self, request, instance=None, op="", rest=[], kw={}):
         h = self.handler(request, instance=instance, post=False, rest=rest,
-                         path=self.path)
+                         path=self.path, kw=kw)
         if op == "create":
             return h.create()
         elif op == "edit":
@@ -486,9 +518,9 @@ class RESTLikeDispatcher(BaseDispatcher):
             return h.list()
         return h.view()
 
-    def post(self, request, instance=None, op="", rest=[]):
+    def post(self, request, instance=None, op="", rest=[], kw={}):
         h = self.handler(request, instance=instance, post=True, rest=rest,
-                         path=self.path)
+                         path=self.path, kw=kw)
         if op and hasattr(h, "handle_" + op):
             return getattr(h, "handle_" + op)()
         if instance is None:
@@ -502,12 +534,12 @@ class Resource(object):
 class APIDispatcher(RESTLikeDispatcher):
     csrf_exempt = True
 
-    def get(self, request, instance=None, op="", rest=[]):
+    def get(self, request, instance=None, op="", rest=[], kw={}):
         return HttpResponseNotFound()
 
-    def post(self, request, instance=None, op="", rest=[]):
+    def post(self, request, instance=None, op="", rest=[], kw={}):
         h = self.handler(request, instance=instance, post=True, rest=rest,
-                         path=self.path)
+                         path=self.path, kw=kw)
         if op not in h.resources:
             return HttpResponseNotFound()
         resource = h.resources[op]()
