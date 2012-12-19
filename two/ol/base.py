@@ -341,7 +341,11 @@ class BaseHandler(object):
                 try:
                     res[k] = cls.model[k].objects.get(id=int(v))
                 except KeyError:
-                    raise RuntimeError("No model defined for " + k)
+                    ## ignore, it will be passed as a "kw" entry, and can
+                    ## be used in create contexts, see remark below about
+                    ## not able to fetch an instance
+                    pass
+                    # raise RuntimeError("No model defined for " + k)
                 except ValueError:
                     return None
                 except cls.model[k].DoesNotExist:
@@ -511,7 +515,7 @@ class RESTLikeDispatcher(BaseDispatcher):
             return getattr(h, "handle_" + op)()
         elif op:
             pass # 404
-        elif instance is None:
+        elif not instance:
             return h.list()
         elif isinstance(instance, dict) and 'instance' not in instance:
             ## "multi" model with no instance class
@@ -523,7 +527,7 @@ class RESTLikeDispatcher(BaseDispatcher):
                          path=self.path, kw=kw)
         if op and hasattr(h, "handle_" + op):
             return getattr(h, "handle_" + op)()
-        if instance is None:
+        if not instance:
             return h.create()
         return h.update()
 
