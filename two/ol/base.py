@@ -3,6 +3,8 @@ from django.http import HttpResponse, Http404
 from django.core.context_processors import csrf
 from django.http import HttpResponseRedirect, HttpResponsePermanentRedirect
 from django.http import HttpResponseNotFound, HttpResponseForbidden
+from django.http import HttpResponseBadRequest, HttpResponseServerError
+
 from django.contrib.sites.models import get_current_site
 
 import os
@@ -170,6 +172,12 @@ class NotFound(BaseException):
     pass
 
 class Forbidden(BaseException):
+    pass
+
+class BadRequest(BaseException):
+    pass
+
+class ServerError(BaseException):
     pass
 
 class BaseHandler(object):
@@ -393,6 +401,12 @@ class BaseHandler(object):
     def forbidden(self):
         raise Forbidden()
 
+    def badrequest(self):
+        raise BadRequest()
+
+    def servererror(self):
+        raise ServerError()
+
     def get_template(self, t):
         return loader.get_template(t)
 
@@ -478,6 +492,11 @@ class BaseDispatcher(object):
             raise Http404
         except Forbidden:
             return HttpResponseForbidden()
+        except BadRequest:
+            return HttpResponseBadRequest()
+        except ServerError:
+            return HttpResponseServerError()
+
         return HttpResponseNotFound()
 
     def get(self, request, instance=None, op="", rest=[], kw={}):
