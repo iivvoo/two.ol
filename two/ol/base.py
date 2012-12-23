@@ -4,6 +4,7 @@ from django.core.context_processors import csrf
 from django.http import HttpResponseRedirect, HttpResponsePermanentRedirect
 from django.http import HttpResponseNotFound, HttpResponseForbidden
 from django.http import HttpResponseBadRequest, HttpResponseServerError
+from django.conf import settings
 
 from django.contrib.sites.models import get_current_site
 
@@ -491,7 +492,9 @@ class BaseDispatcher(object):
         except NotFound:
             raise Http404
         except Forbidden:
-            return HttpResponseForbidden()
+            return HttpResponseRedirect(settings.LOGIN_URL + "?" +
+                                        urllib.pathname2url(request.path))
+            #return HttpResponseForbidden()
         except BadRequest:
             return HttpResponseBadRequest()
         except ServerError:
