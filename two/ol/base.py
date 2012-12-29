@@ -97,7 +97,7 @@ def methods_for_handler(h):
     return [x[7:] for x in dir(h) if x.startswith("handle_")] \
                                   + ["create", "edit"]
 
-def Pats(path, handlerklass, name=None):
+def Pats(path, handlerklass, name=None, **kw):
     def NewMapping(path, handlerklass, name, wp=True):
         path = path.strip("/")
         if wp:
@@ -112,8 +112,8 @@ def Pats(path, handlerklass, name=None):
             pattern = "^%s$" % pathpattern
         handler = handlerklass.dispatcher(handlerklass, path=path)
         if name:
-            return url(pattern, handler, name=name)
-        return url(pattern, handler)
+            return url(pattern, handler, name=name, kwargs=kw)
+        return url(pattern, handler, kwargs=kw)
 
     return patterns('',
         NewMapping(path, handlerklass, name, wp=True),
@@ -122,7 +122,7 @@ def Pats(path, handlerklass, name=None):
 
 from django.core.urlresolvers import RegexURLResolver
 
-def twpatterns(path, handlerklass, name=None):
+def twpatterns(path, handlerklass, name=None, **kw):
     """
         Simulate an included url module with all our generated/required
         patterns
@@ -131,7 +131,7 @@ def twpatterns(path, handlerklass, name=None):
         patterns, e.g.
         twpatterns('instance', '<regexppattern>', name='bla')
     """
-    urlpatterns = Pats(path, handlerklass, name)
+    urlpatterns = Pats(path, handlerklass, name, **kw)
     return RegexURLResolver('', urlpatterns)
 
 def Mapping(path, handlerklass, name=None, wp=True):
@@ -550,7 +550,9 @@ class RESTLikeDispatcher(BaseDispatcher):
                          path=self.path, kw=kw)
         if op and hasattr(h, "handle_" + op):
             return getattr(h, "handle_" + op)()
-        if not instance:
+        # if not instance: -- instance may be a dict with non-instance
+        if not instance or (isinstance(instance, dict) and
+                            'instance' not in instance):
             return h.create()
         return h.update()
 
