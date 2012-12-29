@@ -94,7 +94,8 @@ from django.conf.urls.defaults import patterns
 
 def methods_for_handler(h):
     ## add callable check?
-    return [x[7:] for x in dir(h) if x.startswith("handle_")] + ["create"]
+    return [x[7:] for x in dir(h) if x.startswith("handle_")] \
+                                  + ["create", "edit"]
 
 def Pats(path, handlerklass, name=None):
     def NewMapping(path, handlerklass, name, wp=True):
@@ -115,8 +116,8 @@ def Pats(path, handlerklass, name=None):
         return url(pattern, handler)
 
     return patterns('',
-        NewMapping(path, handlerklass, name, wp=False),
         NewMapping(path, handlerklass, name, wp=True),
+        NewMapping(path, handlerklass, name, wp=False),
     )
 
 from django.core.urlresolvers import RegexURLResolver
