@@ -397,16 +397,20 @@ class BaseHandler(object):
             url += "#" + hash
         raise Redirect(url, permanent=permanent)
 
-    def notfound(self):
+    @classmethod
+    def notfound(cls):
         raise NotFound()
 
-    def forbidden(self):
+    @classmethod
+    def forbidden(cls):
         raise Forbidden()
 
-    def badrequest(self):
+    @classmethod
+    def badrequest(cls):
         raise BadRequest()
 
-    def servererror(self):
+    @classmethod
+    def servererror(cls):
         raise ServerError()
 
     def get_template(self, t):
