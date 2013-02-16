@@ -130,6 +130,9 @@ def twpatterns(path, handlerklass, name=None, **kw):
         We could (ab)use the 'prefix' part as the base part of our
         patterns, e.g.
         twpatterns('instance', '<regexppattern>', name='bla')
+
+        Additionally, record which pattern matched during resolving
+        for debugging purposes
     """
     urlpatterns = Pats(path, handlerklass, name, **kw)
     return RegexURLResolver('', urlpatterns)
