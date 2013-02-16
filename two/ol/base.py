@@ -12,6 +12,7 @@ import os
 import types
 import urllib
 import json as jsonlib
+import inspect
 
 ## "Twool" / 2ol it takes two to django 
 ## Toolkit for Web Oriented Object Library
@@ -38,6 +39,15 @@ def applyrequest(f=None, **kw):
         return x
     else:
         return applyrequest_notype(f)
+
+def missing_args(f, args, kw):
+    # http://stackoverflow.com/questions/196960/can-you-list-the-keyword-arguments-a-python-function-receives
+    args, varargs, varkw, defaults = inspect.getargspec(f)
+    if defaults:
+        args = args[:-len(defaults)]
+
+    return set(args).difference(kw)
+
 
 ## applypost, applyget, applyform?
 def applyrequest_notype(f, **mapping):
