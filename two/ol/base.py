@@ -510,7 +510,7 @@ class BaseDispatcher(object):
         except NotFound:
             raise Http404
         except Forbidden:
-            return HttpResponseRedirect(settings.LOGIN_URL + "?" +
+            return HttpResponseRedirect(settings.LOGIN_URL + "?next=" +
                                         urllib.pathname2url(request.path))
             #return HttpResponseForbidden()
         except BadRequest:
