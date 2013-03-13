@@ -96,6 +96,14 @@ def context(f):
     f.contextified = True
     return f
 
+def handler(f):
+    """ identify a method as being able to handle direct calls on a 
+        resource, e.g. /person/123/do_foo would map to either handle_do_foo
+        or @handler def do_foo()
+    """
+    f.ishandler = True
+    return f
+
 ## Mapping is partially mimicing django's url naming/reverse. Use that
 ## in stead.
 
@@ -104,8 +112,9 @@ from django.conf.urls.defaults import patterns
 
 def methods_for_handler(h):
     ## add callable check?
-    return [x[7:] for x in dir(h) if x.startswith("handle_")] \
-                                  + ["create", "edit"]
+    return [x[7:] for x in dir(h) if x.startswith("handle_")] + \
+           [x for x in dir(h) if getattr(x, 'ishandler', False)]  + \
+           ["create", "edit"]
 
 def Pats(path, handlerklass, name=None, **kw):
     def NewMapping(path, handlerklass, name, wp=True):
@@ -526,21 +535,39 @@ class BaseDispatcher(object):
     def post(self, request, instance=None, op="", rest=[], kw={}):
         pass
 
+def gethandler(h, name):
+    """
+        return the handler method identified by 'name'. This
+        can be either 'handle_<name>', or name itself if it's
+        marked as handler
+    """
+    if hasattr(h, "handle_" + name):
+        return getattr(h, "handle_" + name)
+    if hasattr(h, name):
+        hh = getattr(h, name)
+        if getattr(hh, "ishandler", False):
+            return hh
+    return None
+
 class FormDispatcher(BaseDispatcher):
     def get(self, request, instance=None, op="", rest=[], kw={}):
         h = self.handler(request, instance=instance, post=False, rest=rest,
                          path=self.path, kw=kw)
 
-        if op and hasattr(h, "handle_" + op):
-            return getattr(h, "handle_" + op)()
+        if op:
+            hh = gethandler(h, op)
+            if hh:
+                return hh()
         return h.index()
 
     def post(self, request, instance=None, op="", rest=[], kw={}):
         h = self.handler(request, instance=instance, post=True, rest=rest,
                          path=self.path, kw=kw)
 
-        if op and hasattr(h, "handle_" + op):
-            return getattr(h, "handle_" + op)()
+        if op:
+            hh = gethandler(h, op)
+            if hh:
+                return hh()
         return h.process()
 
 class RESTLikeDispatcher(BaseDispatcher):
@@ -551,8 +578,8 @@ class RESTLikeDispatcher(BaseDispatcher):
             return h.create()
         elif op == "edit":
             return h.update()
-        elif op and hasattr(h, "handle_" + op):
-            return getattr(h, "handle_" + op)()
+        elif op and gethandler(h, op):
+            return gethandler(h, op)()
         elif op:
             pass # 404
         elif not instance:
@@ -565,8 +592,8 @@ class RESTLikeDispatcher(BaseDispatcher):
     def post(self, request, instance=None, op="", rest=[], kw={}):
         h = self.handler(request, instance=instance, post=True, rest=rest,
                          path=self.path, kw=kw)
-        if op and hasattr(h, "handle_" + op):
-            return getattr(h, "handle_" + op)()
+        if op and gethandler(h, op):
+            return gethandler(h, op)()
         # if not instance: -- instance may be a dict with non-instance
         if not instance or (isinstance(instance, dict) and
                             'instance' not in instance):
