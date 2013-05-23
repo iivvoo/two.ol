@@ -2,7 +2,7 @@ from django.template import RequestContext, loader
 from django.http import HttpResponse, Http404
 from django.core.context_processors import csrf
 from django.http import HttpResponseRedirect, HttpResponsePermanentRedirect
-from django.http import HttpResponseNotFound, HttpResponseForbidden
+from django.http import HttpResponseForbidden
 from django.http import HttpResponseBadRequest, HttpResponseServerError
 from django.conf import settings
 
@@ -489,7 +489,7 @@ class BaseDispatcher(object):
                 try:
                     instance = self.handler.coerce(coerceable)
                 except NotFound:
-                    return HttpResponseNotFound()
+                    raise Http404
 
             ## if it didn't result in a instance, keep the first element
             ## as part of the op / elements
@@ -527,7 +527,7 @@ class BaseDispatcher(object):
         except ServerError:
             return HttpResponseServerError()
 
-        return HttpResponseNotFound()
+        raise Http404
 
     def get(self, request, instance=None, op="", rest=[], kw={}):
         pass
@@ -608,18 +608,18 @@ class APIDispatcher(RESTLikeDispatcher):
     csrf_exempt = True
 
     def get(self, request, instance=None, op="", rest=[], kw={}):
-        return HttpResponseNotFound()
+        raise Http404
 
     def post(self, request, instance=None, op="", rest=[], kw={}):
         h = self.handler(request, instance=instance, post=True, rest=rest,
                          path=self.path, kw=kw)
         if op not in h.resources:
-            return HttpResponseNotFound()
+            raise Http404
         resource = h.resources[op]()
         try:
             result = resource(self.path, rest, request)
         except NotFound:
-            return HttpResponseNotFound()
+            raise Http404
         except Forbidden:
             return HttpResponseForbidden()
         return HttpResponse(result)
