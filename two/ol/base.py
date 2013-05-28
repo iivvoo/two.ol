@@ -409,7 +409,13 @@ class BaseHandler(object):
         args = kw.copy()
         if piggyback:
             args.update(self.context['piggyback'])
-        args = urllib.urlencode(args)
+        ## encode args values to utf8
+        encoded = {}
+        for (k, v) in args.iteritems():
+            if isinstance(v, unicode):
+                v = v.encode('utf8')
+            encoded[k] = v
+        args = urllib.urlencode(encoded)
         if args:
             if '?' in url: # it already has args
                 url = url + "&" + args
