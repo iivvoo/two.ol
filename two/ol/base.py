@@ -513,7 +513,7 @@ class BaseDispatcher(object):
                     rest = elements[2:]
 
         try:
-            if request.method == "GET":
+            if request.method in ("GET", "HEAD"):
                 return self.get(request, instance, op, rest, kw=kw)
             elif request.method == "POST":
                 return self.post(request, instance, op, rest, kw=kw)
