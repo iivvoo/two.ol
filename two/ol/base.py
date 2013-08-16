@@ -493,7 +493,14 @@ class BaseDispatcher(object):
         if coerceable:
             if self.handler.model is not None:
                 try:
-                    instance = self.handler.coerce(coerceable)
+                    if hasattr(self.handler, 'coerce_with_request'):
+                        ## if supported, supply request. Can't use
+                        ## default arguments because of backward compat.
+                        ## deprecate requestless coerce? XXX
+                        instance = self.handler.coerce_with_request(
+                                      coerceable, request)
+                    else:
+                        instance = self.handler.coerce(coerceable)
                 except NotFound:
                     raise Http404
 
