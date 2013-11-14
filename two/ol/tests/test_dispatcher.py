@@ -3,6 +3,8 @@ from two.ol.base import FormDispatcher, RESTLikeDispatcher
 
 from django.test.client import RequestFactory
 
+import pytest
+
 class TestRESTHandler(RESTLikeHandler):
     pass
 
@@ -19,6 +21,7 @@ class TestDispatcher(object):
     def setup(self):
         self.factory = RequestFactory()
 
+    @pytest.skip()
     def test_one(self, client):
         request = self.factory.get('/foo')
         instance = object()
