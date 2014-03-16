@@ -20,7 +20,8 @@ import inspect
 
 def json(f):
     def jsonify(*args, **kw):
-        return HttpResponse(jsonlib.dumps(f(*args, **kw)), mimetype="application/json")
+        return HttpResponse(jsonlib.dumps(f(*args, **kw)),
+                            mimetype="application/json")
     return jsonify
 
 def applyrequest(f=None, **kw):
@@ -277,6 +278,12 @@ class BaseHandler(object):
             if isinstance(m, (types.FunctionType, types.MethodType)) and \
                getattr(m, 'contextified', False):
                 self.context[a] = m
+
+    def pre_handler(self):
+        """ invoked before an operation """
+
+    def post_handler(self):
+        """ invoked after an operation """
 
     def update_context(self, request):
         """ hook to add more stuff into context """
@@ -587,31 +594,41 @@ class RESTLikeDispatcher(BaseDispatcher):
     def get(self, request, instance=None, op="", rest=[], kw={}):
         h = self.handler(request, instance=instance, post=False, rest=rest,
                          path=self.path, kw=kw)
-        if op == "create":
-            return h.create()
-        elif op == "edit":
-            return h.update()
-        elif op and gethandler(h, op):
-            return gethandler(h, op)()
-        elif op:
-            pass # 404
-        elif not instance:
-            return h.list()
-        elif isinstance(instance, dict) and 'instance' not in instance:
-            ## "multi" model with no instance class
-            return h.list()
-        return h.view()
+        h.pre_handler()
+
+        try:
+            if op == "create":
+                return h.create()
+            elif op == "edit":
+                return h.update()
+            elif op and gethandler(h, op):
+                return gethandler(h, op)()
+            elif op:
+                pass # 404
+            elif not instance:
+                return h.list()
+            elif isinstance(instance, dict) and 'instance' not in instance:
+                ## "multi" model with no instance class
+                return h.list()
+            return h.view()
+        finally:
+            h.post_handler()
 
     def post(self, request, instance=None, op="", rest=[], kw={}):
         h = self.handler(request, instance=instance, post=True, rest=rest,
                          path=self.path, kw=kw)
-        if op and gethandler(h, op):
-            return gethandler(h, op)()
-        # if not instance: -- instance may be a dict with non-instance
-        if not instance or (isinstance(instance, dict) and
-                            'instance' not in instance):
-            return h.create()
-        return h.update()
+        h.pre_handler()
+
+        try:
+            if op and gethandler(h, op):
+                return gethandler(h, op)()
+            # if not instance: -- instance may be a dict with non-instance
+            if not instance or (isinstance(instance, dict) and
+                                'instance' not in instance):
+                return h.create()
+            return h.update()
+        finally:
+            h.post_handler()
 
 class Resource(object):
     def __call__(self):
