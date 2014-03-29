@@ -109,7 +109,7 @@ def handler(f):
 ## in stead.
 
 from django.conf.urls import url
-from django.conf.urls.defaults import patterns
+from django.conf.urls import patterns
 
 def methods_for_handler(h):
     ## add callable check?
