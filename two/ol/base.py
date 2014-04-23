@@ -477,7 +477,7 @@ class BaseDispatcher(object):
         return "%s:%s.%s" % (self.path, self.handler.__module__,
                              self.handler.__name__)
 
-    def __call__(self, request, path="", **kw):
+    def invoke(self, request, path="", **kw):
         ## instance stuff belongs in RESTLike
         instance = None
         op = ""
@@ -526,11 +526,17 @@ class BaseDispatcher(object):
                     op = elements[1]
                     rest = elements[2:]
 
-        try:
             if request.method in ("GET", "HEAD"):
                 return self.get(request, instance, op, rest, kw=kw)
             elif request.method == "POST":
                 return self.post(request, instance, op, rest, kw=kw)
+
+    def __call__(self, request, path="", **kw):
+        """
+            delegate the work to invoke(), handle the exceptions it may raise
+        """
+        try:
+            return self.invoke(request, path, **kw)
         except Redirect, e:
             if e.permanent:
                 return HttpResponsePermanentRedirect(e.url)
