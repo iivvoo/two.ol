@@ -526,10 +526,10 @@ class BaseDispatcher(object):
                     op = elements[1]
                     rest = elements[2:]
 
-            if request.method in ("GET", "HEAD"):
-                return self.get(request, instance, op, rest, kw=kw)
-            elif request.method == "POST":
-                return self.post(request, instance, op, rest, kw=kw)
+        if request.method in ("GET", "HEAD"):
+            return self.get(request, instance, op, rest, kw=kw)
+        elif request.method == "POST":
+            return self.post(request, instance, op, rest, kw=kw)
 
     def __call__(self, request, path="", **kw):
         """
