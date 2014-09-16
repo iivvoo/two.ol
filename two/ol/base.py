@@ -460,6 +460,9 @@ class BaseHandler(object):
         t = self.get_template(template_path)
         result = t.render(self.context)
         self.context.pop()
+
+        ## angularjs fix
+        result = result.replace("<[", "{{").replace("]>", "}}")
         return result
 
     def template(self, t, **kw):
